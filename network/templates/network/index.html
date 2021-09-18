@@ -1,0 +1,268 @@
+{% extends "network/layout.html" %}
+{% block style %}
+<style>
+    .page {
+        padding:15px;
+    }
+    #button {
+        margin-top:10px;
+    }
+    .postBox {
+        border: solid 2px gainsboro;
+        border-radius: 7px;
+        margin:10px;
+        padding:10px;
+    }
+    .heading {
+        font-family: Arial, Helvetica, sans-serif;
+    }
+    #newPostBox {
+        position:fixed;
+        bottom:0;
+        width:98%;
+        background-color: white;
+    }
+    #addPostButton {
+        display:none;
+        position:fixed;
+        bottom:0;
+        margin:10px;
+    }
+    .like-icon {
+        height:15px;
+        width:15px;
+    }
+    #profile_info {
+        width:500px;
+        height:130px;
+        margin-left:30%;
+        border-color:grey;
+    }
+    #stats{
+        text-align:center;
+        display:flex;
+        justify-content:center;
+        float:right;
+    }
+    #stats p {
+        font-size:16px;
+        font-weight:bold;
+        margin:10px
+    }
+    #follow {
+        width:450px;
+        height:35px;
+        text-align:center;
+        margin-left:10px;
+    }
+</style>
+{% endblock %}
+{% block body %}
+    {% if profile == True %}
+    <div id="profile_info" class="postBox">
+    
+        <div id="stats">  
+            <div>
+                <p>{{ posts_num }}<br>
+                    <small>Posts</small>
+                </p> 
+            </div>
+            <div >
+                <p>{{ followers }}<br>
+                    <small>Followers</small>
+                </p> 
+            </div>
+            <div >
+                <p>{{ following }}<br>
+                    <small>Following</small>
+                </p> 
+            </div>
+        </div> 
+        <h3 class="heading">{{ username }}</h3>
+        {% if not is_owner %}
+        <form action="{% url 'follow' username %}" method="POST">
+            {% csrf_token %}
+            {% if not is_following %}
+            <button type="submit" id="follow" class="btn btn-primary">Follow</button>
+            {% else %}
+            <button type="submit" id="follow" class="btn btn-primary">Unfollow</button>
+            {% endif %}
+    
+        </form>
+        {% endif %}
+    </div>
+    {% elif user.is_authenticated %}
+    <div id="newPostBox" class="form-group page postBox page">
+        <button onclick="hide_new_post()" class="btn btn-link"style="float:right;">Hide</button>
+        <h4 class="heading">New Post</h4>
+        <form action="{% url 'create' %}" method="POST">
+            {% csrf_token %}
+            <textarea class="form-control" rows="3" name="newPost" placeholder="What's on your mind?"></textarea>
+            <button class="btn btn-primary" id="button" type="submit">Post</button>
+        </form>
+    </div>
+    <div id="addPostButton">
+        <button onclick="show_new_post()" class="btn btn-primary">Add a Post</button>
+    </div>
+    {% endif %}
+    <div class="page">
+        {% if following_page %}
+        <h1 class="heading">Following</h1>    
+        {% elif main %}
+        <h1 class="heading">All Posts</h1>
+        {% endif %}
+        {% for post in page_obj %}
+        <div class="postBox">
+            <h5>
+                <a style="color:black;" href="{% url 'profile' post.user %}">{{ post.user }}</a>
+            </h5>
+            <p class="post_text">{{ post.text }}</p>
+            {% if post.user == user %}
+            <button  style="margin-left:-10px;" data-text="{{ post.text }}" data-user="{{ user }}" data-post="{{ post.id }}"class="btn btn-link edit_post ">Edit</button> <br>
+            {% endif %}
+            <small class="text-muted">{{ post.time }}</small>
+            <footer style="width:35px">
+                {% if post.id in liked_posts %}
+                <img class="like-icon" data-post="{{ post.id }}" data-liked = "true" src="/static/network/heart.png">
+                {% else %}
+                <img class="like-icon" data-post="{{ post.id }}" data-liked = "false" src="/static/network/heart-empty.jpg">
+                {% endif %}
+                <p style="float:right">{{ post.likes }}</p>
+            </footer>
+            
+        </div>
+
+        {% endfor %}
+    </div>
+
+    <nav aria-label="Page navigation example">
+        <ul class="pagination justify-content-center">
+        {% if not page_obj.has_previous %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+            </li>
+        {% else %}    
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}" tabindex="-1">Previous</a>
+            </li>
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">{{ page_obj.previous_page_number }}</a></li>
+        {% endif %}
+          <li class="page-item active" aria-current="page"><a class="page-link" href="#">{{ page_obj.number }}</a></li>
+        {% if page_obj.has_next %}  
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">{{ page_obj.next_page_number }}</a></li>
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+          </li>
+        {% else %}
+           <li class="page-item disabled">
+            <a class="page-link" href="#" aria-disabled="true">Next</a>
+           </li>
+        {% endif %}
+        </ul>
+      </nav>
+    
+<script>
+addEventListener("DOMContentLoaded", () => {
+    document.addEventListener('click', event => {
+        const element = event.target;
+        if(element.classList.contains("edit_post")) {
+            var edit = document.createElement("textarea");
+            edit.innerHTML = element.dataset.text;
+            const user = element.dataset.user;
+            const id = element.dataset.post;
+            edit.className += "form-control";
+            edit.setAttribute("rows", "3");
+            edit.style.position = "static";
+            edit.id = "edit"
+            var save = document.createElement("button");
+            save.innerHTML = "Save Changes";
+            save.className += "btn btn-primary";
+            
+            element.parentElement.appendChild(save);
+            element.insertAdjacentHTML("afterend", edit.outerHTML);
+            
+            
+            
+            element.previousElementSibling.style.display = "none";
+            element.style.display = "none";
+            save.addEventListener("click", () => {
+                var body = document.querySelector('#edit').value;
+                element.setAttribute('data-text', body);
+                fetch("/edit_post", {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        body: body,
+                        user: user,
+                        id: id
+                    })
+                })
+                .then(response => response.json())
+                .then(result => {
+                    console.log(result);
+                });
+                element.style.display = "block";
+                element.previousElementSibling.innerHTML = body;
+                element.previousElementSibling.style.display = "block";
+
+                document.querySelector("#edit").remove();
+                edit.remove();
+                save.remove();
+                
+                
+
+            })
+        }
+    })
+    document.addEventListener("click", event => {
+        const element=event.target;
+        if (element.className==="like-icon") {
+            count = like(element);
+            element.nextElementSibling.innerHTML = count;
+        }
+    })
+})
+
+
+
+function hide_new_post () {
+    document.querySelector('#newPostBox').style.display = "none";
+    document.querySelector('#addPostButton').style.display = "block";
+    
+}
+
+function show_new_post() {
+    document.querySelector('#newPostBox').style.display = "block";
+    document.querySelector('#addPostButton').style.display = "none";
+}
+
+function like(element) {
+    post = element.dataset.post;
+    if (element.dataset.liked === "false") {
+        element.src = "/static/network/heart.png";
+        var liked=false
+        element.setAttribute("data-liked", "true");
+        count = parseInt(element.nextElementSibling.innerHTML) +1;
+    }
+    else {
+        element.src = "/static/network/heart-empty.jpg";
+        var liked=true
+        element.setAttribute("data-liked", "false");
+        count = parseInt(element.nextElementSibling.innerHTML) -1;
+    }
+    fetch("/like", {
+        method: 'POST',
+        body: JSON.stringify({
+            post: post,
+            liked: liked
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        console.log(result);
+    });
+    return count;
+
+}
+
+</script>
+{% endblock %}
